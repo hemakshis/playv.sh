@@ -10,20 +10,38 @@
 # maybe a volume option as well '-v=75' keep volume at 75
 # BONUS - play any random video '-r'
 
+# Function to print the list of video files inside a directory with video number
+function print_list() {
+	for ((i = 0 ; i < $no_of_video_files; i++)) ;
+	do
+		echo $(($i + 1)): $(basename "${video_files[$i]}")
+	done
+}
+
 # Function to play single video file
 function play_video() {
 	i=$(($1 - 1))
-	$(vlc --play-and-exit --rate $2 ${video_files[$i]} 2>&1)
+	if [[ $full_screen = true ]]
+	then
+		$(vlc --play-and-exit --rate $playback_speed --fullscreen "${video_files[$i]}")
+	else
+		$(vlc --play-and-exit --rate $playback_speed "${video_files[$i]}")
+	fi
 }
 
 # Function to play multiple video files
 function play_videos() {
-	s=$(($1 - 1))
-	e=$(($2 - 1))
-	for ((i=$s ; i <= $e ; i++)) ;
+	a=$(($1 - 1))
+	b=$(($2 - 1))
+	for ((i = $a ; i <= $b ; i++)) ;
 	do
-		$(vlc --play-and-exit --rate $3 ${video_files[$i]} 2>&1)
-		sleep $4
+		if [[ $full_screen = true ]]
+		then
+			$(vlc --play-and-exit --rate $playback_speed --fullscreen "${video_files[$i]}")
+		else
+			$(vlc --play-and-exit --rate $playback_speed "${video_files[$i]}")
+		fi
+		sleep $time_delay
 	done
 }
 
@@ -37,56 +55,40 @@ video_files=(
 )
 no_of_video_files=${#video_files[@]}
 
-
-
 single=false
-
 random=false
-
 video_num=0
-
 play_single_file=false
 
 all=false
-
 # Default - play from the first video
 start_num=1
 start_num_provided=false
-
 # Default - play till the last video
 end_num=$no_of_video_files
 end_num_provided=false
-
 # Default - play till the last video
 num_of_videos_to_play=$no_of_video_files
 num_of_videos_to_play_provided=false
-
 play_multiple_files=false
 
 playback_speed=1
-
 time_delay=0
+full_screen=false
 
-while getopts "ar1:d:e:n:p:s:" opt;
+while getopts "1:ad:ef:ln:p:rs:" opt;
 do
 	case "$opt" in
-		a)
-			all=true
-			play_multiple_files=true
-			echo "Playing all videos in the directory"
-		;;
-		r)
-			random=true
-			video_num=$((1 + RANDOM % $no_of_video_files))
-			play_single_file=true
-			echo "Playing video number $video_num"
-			;;
-
 		1)
 			single=true
 			video_num=$OPTARG
 			play_single_file=true
 			echo "Playing video number $video_num"
+		;;
+		a)
+			all=true
+			play_multiple_files=true
+			echo "Playing all videos in the directory"
 		;;
 		d)
 			time_delay=$OPTARG
@@ -97,6 +99,13 @@ do
 			end_num_provided=true
 			play_multiple_files=true
 		;;
+		f)
+			full_screen=true
+			echo "Playing videos in fullscreen mode"
+		;;
+		l)
+			print_list
+		;;
 		n)
 			num_of_videos_to_play=$OPTARG
 			num_of_videos_to_play_provided=true
@@ -105,6 +114,12 @@ do
 		p)
 			playback_speed=$OPTARG
 			echo "Playing videos at a playback speed of $playback_speed"
+		;;
+		r)
+			random=true
+			video_num=$((1 + RANDOM % $no_of_video_files))
+			play_single_file=true
+			echo "Playing video number $video_num"
 		;;
 		s)
 			start_num=$OPTARG
@@ -128,7 +143,7 @@ then
 		exit 1
 	fi
 
-	play_video $video_num $playback_speed
+	play_video $video_num
 fi
 
 if [[ $play_multiple_files = true ]]
@@ -162,5 +177,5 @@ then
 		e=$no_of_video_files
 	fi
 
-	play_videos $s $e $playback_speed $time_delay
+	play_videos $s $e
 fi

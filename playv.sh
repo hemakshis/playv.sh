@@ -1,14 +1,41 @@
 #! /bin/bash
 
-# play all the videos in the folder OR play a single video OR provide a start and end no. OR provide no. of videos to play consecutively
-# for all the videos '-a'
-# for single video '-1=5' (note: it is 1 (one, integer) not the char 'l') play video no. 5 as per `ls` command listing
-# for start & end '-s=2' '-e=5' it will play videos from video no. 2 to video no. 5 as per `ls` command listing
-# for consecutive playing '-s=2' '-n=5' starting from video no. 2 (as per `ls` command listing) play next 4 videos including this one (1 + 4 = 5)
-# playback speed '-p=1.5x'
-# time gap between two videos '-d=10' time gap of 10 seconds
-# maybe a volume option as well '-v=75' keep volume at 75
-# BONUS - play any random video '-r'
+function print_help() {
+	echo -e "playv
+A command line utilily to play videos inside a directory with ease.
+
+Usage:  playv [OPTIONS]...
+Plays video(s) inside the current directory as per the options given
+
+Options
+    1 <file_num>  Play single video file <file_num>.
+
+    a             Play all video files present in the directory starting
+                  from first.
+
+    d <secs>      Add a time delay of <secs> seconds between two video
+                  files when playing multiple video files.
+
+    e <file_num>  Play all video(s) till video file number <file_num>.
+
+    f             Play videos in full screen mode.
+
+    h             Display help.
+
+    l             List all the video files present in the current directory
+                  with their number.
+
+    n <count>     Play <count> files consecutively starting from the starting
+                  file number (or first file if start number not provide).
+
+    p <rate>      Play all the videos at a playback speed of <rate>.
+
+    r             Play any random video file from the directory.
+
+    s <file_num>  Play all files starting from the <file_num> till the given
+                  ending number or count (or till the last video file if both
+                  not provided)"
+}
 
 # Function to print the list of video files inside a directory with video number
 function print_list() {
@@ -16,6 +43,11 @@ function print_list() {
 	do
 		echo $(($i + 1)): $(basename "${video_files[$i]}")
 	done
+
+	if [[ $no_of_video_files -eq 0 ]]
+	then
+		echo "No video files found"
+	fi
 }
 
 # Function to play single video file
@@ -23,9 +55,9 @@ function play_video() {
 	i=$(($1 - 1))
 	if [[ $full_screen = true ]]
 	then
-		$(vlc --play-and-exit --rate $playback_speed --fullscreen "${video_files[$i]}")
+		$(vlc --play-and-exit --rate $playback_speed --fullscreen "${video_files[$i]}" 2>&1)
 	else
-		$(vlc --play-and-exit --rate $playback_speed "${video_files[$i]}")
+		$(vlc --play-and-exit --rate $playback_speed "${video_files[$i]}" 2>&1)
 	fi
 }
 
@@ -35,11 +67,12 @@ function play_videos() {
 	b=$(($2 - 1))
 	for ((i = $a ; i <= $b ; i++)) ;
 	do
+		echo "Playing video number $(($i + 1))"
 		if [[ $full_screen = true ]]
 		then
-			$(vlc --play-and-exit --rate $playback_speed --fullscreen "${video_files[$i]}")
+			$(vlc --play-and-exit --rate $playback_speed --fullscreen "${video_files[$i]}" 2>&1)
 		else
-			$(vlc --play-and-exit --rate $playback_speed "${video_files[$i]}")
+			$(vlc --play-and-exit --rate $playback_speed "${video_files[$i]}" 2>&1)
 		fi
 		sleep $time_delay
 	done
@@ -76,7 +109,7 @@ playback_speed=1
 time_delay=0
 full_screen=false
 
-while getopts "1:ad:ef:ln:p:rs:" opt;
+while getopts "1:ad:e:fhln:p:rs:" opt;
 do
 	case "$opt" in
 		1)
@@ -102,6 +135,9 @@ do
 		f)
 			full_screen=true
 			echo "Playing videos in fullscreen mode"
+		;;
+		h)
+			print_help
 		;;
 		l)
 			print_list
@@ -143,7 +179,13 @@ then
 		exit 1
 	fi
 
-	play_video $video_num
+	if [[ $video_num -ge 1 && $video_num -le $no_of_video_files ]]
+	then
+		play_video $video_num
+	else
+		echo "Invalid file number"
+		exit 1
+	fi
 fi
 
 if [[ $play_multiple_files = true ]]
@@ -160,6 +202,12 @@ then
 		exit 1
 	fi
 
+	# If start index is less than 1
+	if [[ $start_num -lt 1 ]]
+	then
+		start_num=1
+	fi
+
 	s=$start_num
 	e=$end_num
 
@@ -169,8 +217,8 @@ then
 	elif [[ $num_of_videos_to_play_provided = true ]]
 	then
 		e=$(($start_num + $num_of_videos_to_play - 1))
-
 	fi
+
 	# If end index exceeds number of video files
 	if [[ $e -gt $no_of_video_files ]]
 	then
